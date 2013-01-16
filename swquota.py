@@ -11,10 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import httplib
-import urlparse
-
-from webob.exc import HTTPForbidden, HTTPUnauthorized
+from webob.exc import HTTPForbidden, HTTPUnauthorized, Request
 from swift.common.utils import cache_from_env
 from swift.common.wsgi import make_pre_authed_request
 
@@ -25,10 +22,9 @@ class Swquota(object):
     requests (PUT, POST) if a given quota is exceeded while DELETE requests
     are still allowed.
 
-    swquota request an URL with the name of the account appended and uses the
-    returned body data as quota size in bytes. The easiest way is to put
-    objects with the name of the account as key and size in bytes as the
-    content into a public readable container.
+    swquota uses the x-account-meta-bytes-limit metadata to store the quota.
+    Write requests to this metadata setting are only allowed for resellers.
+    There is no quota limit if x-account-meta-bytes-limit is not set.
 
     memcache is used to lower the number of subsequent HTTP requests.
 
@@ -36,10 +32,7 @@ class Swquota(object):
 
     [filter:swquota]
     paste.filter_factory = swquota:filter_factory
-    quota_account = auth_swquota
-    quota_container = quotas
     #cache_timeout = 300
-    #request_timeout = 15
 
     """
 
@@ -47,42 +40,33 @@ class Swquota(object):
         self.app = app
         self.conf = conf
 
-    def _get_quota(self, accountname):
-        quota_url = self.conf.get('quota_url', None)
-        if not quota_url:
-            raise Exception('swquota: missing quota_url setting')
-
-        request_timeout = self.conf.get('request_timeout', 5)
-        #pylint:disable=E1101
-        parsed_url = urlparse.urlparse(quota_url)
-        if parsed_url.scheme == "http":
-            conn = httplib.HTTPConnection(parsed_url.netloc,
-                                          timeout=request_timeout)
-        else:
-            conn = httplib.HTTPSConnection(parsed_url.netloc,
-                                           timeout=request_timeout)
-        conn.request("GET", parsed_url.path + "/" + accountname)
-        #pylint:enable=E1101
-        response = conn.getresponse()
-        if response.status == 200:
-            limit = int(response.read())
-        else:
-            limit = -1
-            self.app.logger.warn("Quota request for %s failed (%s)",
-                                 accountname, response.status)
-        conn.close()
-        return limit
-
-    def _get_usage(self, account, env):
+    def _get_quota(self, account, env):
         request = make_pre_authed_request(env, 'HEAD', '/v1/' + account)
         response = request.get_response(self.app)
+        quota = -1
         for (key, value) in response.headers.items():
             if key == 'x-account-bytes-used':
-                bytes_used = value
-        return bytes_used
+                bytes_used = int(value)
+            if key == 'x-account-meta-bytes-limit':
+                quota = int(value)
+        return (bytes_used, quota)
+
+    def _header_write_allowed(self, request, env):
+        user = env['REMOTE_USER']
+        if ".reseller_admin" in user.split(','):
+            return True
+        for header in request.headers:
+            if header.lower() == 'x-account-meta-bytes-limit':
+                return False
+        return True
 
     def __call__(self, env, start_response):
-        if env['REQUEST_METHOD'] in ('POST', 'PUT'):
+        request = Request(env)
+        self.app.logger.warn(str(env))
+        if request.method in ("POST", "PUT"):
+            if not self._header_write_allowed(request, env):
+                return HTTPForbidden()(env, start_response)
+
             if 'PATH_INFO' in env:
                 accountname = env['PATH_INFO'].split('/')[2]
                 memcache_client = cache_from_env(env)
@@ -93,8 +77,7 @@ class Swquota(object):
                 if quota_exceeded is None:
                     quota_exceeded = False
 
-                    used_bytes = self._get_usage(accountname, env)
-                    quota = self._get_quota(accountname)
+                    (used_bytes, quota) = self._get_quota(accountname, env)
 
                     if quota >= 0 and quota < used_bytes:
                         quota_exceeded = True
