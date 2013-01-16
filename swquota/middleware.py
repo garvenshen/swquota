@@ -58,13 +58,15 @@ class Swquota(object):
         return (bytes_used, quota)
 
     def _header_write_allowed(self, request, env):
-        """ Check if non-reseller tries to modify quota metadata """
+        """ Check if non-reseller tries to modify quota
+            metadata and quota is either an int or None """
 
-        user = env['REMOTE_USER']
-        if ".reseller_admin" in user.split(','):
-            return True
-        for header in request.headers:
-            if header.lower() == 'x-account-meta-bytes-limit':
+        for (key, value) in request.headers.items():
+            if key.lower() == 'x-account-meta-bytes-limit':
+                user = env['REMOTE_USER']
+                if ".reseller_admin" in user.split(','):
+                    if value is None or int(value):
+                        return True
                 return False
         return True
 
@@ -91,7 +93,7 @@ class Swquota(object):
                     if quota >= 0 and quota < used_bytes:
                         quota_exceeded = True
                         self.logger.info("Quota exceeded: %s %s > %s",
-                                             accountname, used_bytes, quota)
+                                         accountname, used_bytes, quota)
                     if memcache_client:
                         memcache_client.set(
                             memcache_key,
