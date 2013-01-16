@@ -1,5 +1,5 @@
-swquota
-------
+Openstack Swift Quota Middleware
+================================
 
 swquota is a WSGI middleware for Openstack Swift Proxy. It blocks write
 requests (PUT, POST) if a given quota is exceeded while DELETE requests
