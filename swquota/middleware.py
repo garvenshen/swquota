@@ -14,7 +14,7 @@
 """ Quota middleware for Openstack Swift Proxy """
 
 from webob.exc import HTTPForbidden, HTTPUnauthorized, Request
-from swift.common.utils import cache_from_env
+from swift.common.utils import cache_from_env, get_logger
 from swift.common.wsgi import make_pre_authed_request
 
 
@@ -41,6 +41,8 @@ class Swquota(object):
     def __init__(self, app, conf):
         self.app = app
         self.conf = conf
+
+        self.logger = get_logger(self.conf, log_route='swquota')
 
     def _get_quota(self, account, env):
         """ Get quota und currently used storage from account """
@@ -88,7 +90,7 @@ class Swquota(object):
 
                     if quota >= 0 and quota < used_bytes:
                         quota_exceeded = True
-                        self.app.logger.info("Quota exceeded: %s %s > %s",
+                        self.logger.info("Quota exceeded: %s %s > %s",
                                              accountname, used_bytes, quota)
                     if memcache_client:
                         memcache_client.set(
