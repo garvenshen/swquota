@@ -9,7 +9,7 @@ swquota uses the x-account-meta-bytes-limit metadata to store the quota.
 Write requests to this metadata setting are only allowed for resellers.
 There is no quota limit if x-account-meta-bytes-limit is not set.
 
-memcache is used to lower the number of subsequent HTTP requests.
+memcache (if enabled) is used to lower the number of subsequent HTTP requests.
 
 
 Quick Install
@@ -30,17 +30,11 @@ Quick Install
     paste.filter_factory = swquota:filter_factory
     #cache_timeout = 60
 
-4) Make sure that the proxy uses memcache. 
-
-    [filter:cache]
-    use = egg:swift#memcache
-    memcache_servers = 127.0.0.1:11211
- 
-5) Restart your proxy server: 
+4) Restart your proxy server: 
 
     swift-init proxy reload
 
-6) If you want to force a quota on an account you have to set it as reseller. For example:
+5) If you want to force a quota on an account you have to set it as reseller. For example:
 
     swift -U reseller:reseller -K reseller --os-storage-url=https://127.0.0.1/v1/AUTH_account-name post -m bytes-limit:10000
 

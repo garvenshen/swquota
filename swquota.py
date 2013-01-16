@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+""" Quota middleware for Openstack Swift Proxy """
+
 from webob.exc import HTTPForbidden, HTTPUnauthorized, Request
 from swift.common.utils import cache_from_env
 from swift.common.wsgi import make_pre_authed_request
@@ -41,6 +43,8 @@ class Swquota(object):
         self.conf = conf
 
     def _get_quota(self, account, env):
+        """ Get quota und currently used storage from account """
+
         request = make_pre_authed_request(env, 'HEAD', '/v1/' + account)
         response = request.get_response(self.app)
         quota = -1
@@ -52,6 +56,8 @@ class Swquota(object):
         return (bytes_used, quota)
 
     def _header_write_allowed(self, request, env):
+        """ Check if non-reseller tries to modify quota metadata """
+
         user = env['REMOTE_USER']
         if ".reseller_admin" in user.split(','):
             return True
@@ -62,7 +68,6 @@ class Swquota(object):
 
     def __call__(self, env, start_response):
         request = Request(env)
-        self.app.logger.warn(str(env))
         if request.method in ("POST", "PUT"):
             if not self._header_write_allowed(request, env):
                 return HTTPForbidden()(env, start_response)
@@ -70,10 +75,12 @@ class Swquota(object):
             if 'PATH_INFO' in env:
                 accountname = env['PATH_INFO'].split('/')[2]
                 memcache_client = cache_from_env(env)
-                if not memcache_client:
-                    raise Exception('Memcache required')
-                memcache_key = "quota_exceeded_%s" % (accountname, )
-                quota_exceeded = memcache_client.get(memcache_key)
+                quota_exceeded = None
+
+                if memcache_client:
+                    memcache_key = "quota_exceeded_%s" % (accountname, )
+                    quota_exceeded = memcache_client.get(memcache_key)
+
                 if quota_exceeded is None:
                     quota_exceeded = False
 
@@ -81,13 +88,13 @@ class Swquota(object):
 
                     if quota >= 0 and quota < used_bytes:
                         quota_exceeded = True
-                        self.app.logger.warn("Quota exceeded: %s %s > %s",
+                        self.app.logger.info("Quota exceeded: %s %s > %s",
                                              accountname, used_bytes, quota)
-
-                    memcache_client.set(
-                        memcache_key,
-                        quota_exceeded,
-                        timeout=float(self.conf.get('cache_timeout', 60)))
+                    if memcache_client:
+                        memcache_client.set(
+                            memcache_key,
+                            quota_exceeded,
+                            timeout=float(self.conf.get('cache_timeout', 300)))
 
                 if quota_exceeded:
                     #A different return code is needed for Swift S3
