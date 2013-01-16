@@ -13,7 +13,11 @@
 
 """ Quota middleware for Openstack Swift Proxy """
 
-from webob.exc import HTTPForbidden, HTTPUnauthorized, Request
+try:
+    from swift.common.swob import HTTPForbidden, HTTPUnauthorized, Request
+except ImportError:
+    from webob.exc import HTTPForbidden, HTTPUnauthorized, Request
+
 from swift.common.utils import cache_from_env, get_logger
 from swift.common.wsgi import make_pre_authed_request
 
