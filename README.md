@@ -27,7 +27,7 @@ Quick Install
 3) Configure swquota in proxy-server.conf:
 
     [filter:swquota]
-    paste.filter_factory = swquota:filter_factory
+    use = egg:swquota#swquota
     #cache_timeout = 60
 
 4) Restart your proxy server: 
