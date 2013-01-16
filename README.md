@@ -10,10 +10,6 @@ returned body data as quota size in bytes. The easiest way is to put
 objects with the reseller prefix and account name as key and size in bytes as 
 content into a public readable container.
 
-swquota reads the x-account-bytes-used from the accounts, thus a
-reseller account is needed (because users without admin rights can't
-HEAD the account).
-
 memcache is used to lower the number of subsequent HTTP requests.
 
 
@@ -49,9 +45,6 @@ Quick Install
     paste.filter_factory = swquota:filter_factory
     quota_account = auth_swquota
     quota_container = quotas
-    reseller_account = .super_admin:.super_admin
-    reseller_key = swauthkey
-    auth_url = http://127.0.0.1/auth/v1.0
     #cache_timeout = 300
     #request_timeout = 15
 

@@ -14,9 +14,9 @@
 import httplib
 import urlparse
 
-import swiftclient
 from webob.exc import HTTPForbidden, HTTPUnauthorized
 from swift.common.utils import cache_from_env
+from swift.common.wsgi import make_pre_authed_request
 
 
 class Swquota(object):
@@ -30,10 +30,6 @@ class Swquota(object):
     objects with the name of the account as key and size in bytes as the
     content into a public readable container.
 
-    swquota reads the x-account-bytes-used from the accounts, thus a
-    reseller account is needed (because users without admin rights can't
-    read HEAD the account).
-
     memcache is used to lower the number of subsequent HTTP requests.
 
     The following shows an example proxy-server.conf:
@@ -42,9 +38,6 @@ class Swquota(object):
     paste.filter_factory = swquota:filter_factory
     quota_account = auth_swquota
     quota_container = quotas
-    reseller_account = .super_admin:.super_admin
-    reseller_key = swauthkey
-    auth_url = http://127.0.0.1/auth/v1.0
     #cache_timeout = 300
     #request_timeout = 15
 
@@ -80,19 +73,13 @@ class Swquota(object):
         conn.close()
         return limit
 
-    def _get_usage(self, accountname):
-        user = self.conf.get('reseller_account', None)
-        key = self.conf.get('reseller_key', None)
-        auth_url = self.conf.get('auth_url', None)
-
-        if None in (user, key, auth_url):
-            raise Exception('Please check your swquota settings!')
-
-        (url, token) = swiftclient.client.get_auth(auth_url, user, key)
-        base_url = '/'.join(url.split('/')[:-1])
-        url = "%s/%s" % (base_url, accountname, )
-        account_metadata = swiftclient.client.head_account(url, token)
-        return int(account_metadata['x-account-bytes-used'])
+    def _get_usage(self, account, env):
+        request = make_pre_authed_request(env, 'HEAD', '/v1/' + account)
+        response = request.get_response(self.app)
+        for (key, value) in response.headers.items():
+            if key == 'x-account-bytes-used':
+                bytes_used = value
+        return bytes_used
 
     def __call__(self, env, start_response):
         if env['REQUEST_METHOD'] in ('POST', 'PUT'):
@@ -106,7 +93,7 @@ class Swquota(object):
                 if quota_exceeded is None:
                     quota_exceeded = False
 
-                    used_bytes = self._get_usage(accountname)
+                    used_bytes = self._get_usage(accountname, env)
                     quota = self._get_quota(accountname)
 
                     if quota >= 0 and quota < used_bytes:
