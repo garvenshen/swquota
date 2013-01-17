@@ -56,7 +56,6 @@ def start_response(*args):
 
 class TestAccountQuota(unittest.TestCase):
 
-
     def test_unauthorized(self):
         headers = [('x-account-bytes-used', 1000), ]
         app = Swquota(FakeApp(headers), {})

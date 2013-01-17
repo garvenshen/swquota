@@ -67,11 +67,9 @@ class Swquota(object):
 
     def __call__(self, env, start_response):
         request = Request(env)
-    
-        user = ""
-        if 'REMOTE_USER' in env:
-            user = env['REMOTE_USER']
-        
+
+        user = env.get('REMOTE_USER', '')
+
         #Check if quota set is valid
         if request.method in ("POST"):
             for (key, value) in request.headers.items():
@@ -86,8 +84,9 @@ class Swquota(object):
             return self.app(env, start_response)
 
         if request.method in ("POST", "PUT"):
-            if 'PATH_INFO' in env:
-                accountname = env['PATH_INFO'].split('/')[2]
+            path_info = env.get('PATH_INFO', None)
+            if path_info:
+                accountname = path_info.split('/')[2]
                 memcache_client = cache_from_env(env)
                 quota_exceeded = None
 
