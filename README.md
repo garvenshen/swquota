@@ -16,7 +16,9 @@ Quick Install
 -------------
 
 1) Install swquota:
-    
+
+    git clone git://github.com/cschwede/swquota.git
+    cd swquota
     sudo python setup.py install
 
 2) Alter your proxy-server.conf pipeline to use swquota:
