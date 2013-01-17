@@ -13,10 +13,12 @@
 
 """ Quota middleware for Openstack Swift Proxy """
 
+from types import NoneType
+
 try:
-    from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, Request
+    from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, HTTPBadRequest, Request
 except ImportError:
-    from webob.exc import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, Request
+    from webob.exc import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, HTTPBadRequest, Request
 
 from swift.common.utils import cache_from_env, get_logger
 from swift.common.wsgi import make_pre_authed_request
@@ -61,24 +63,16 @@ class Swquota(object):
                 quota = int(value)
         return (bytes_used, quota)
 
-    def _header_write_allowed(self, request, env):
-        """ Check if non-reseller tries to modify quota
-            metadata and quota is either an int or None """
-
-        for (key, value) in request.headers.items():
-            if key.lower() == 'x-account-meta-bytes-limit':
-                user = env['REMOTE_USER']
-                if ".reseller_admin" in user.split(','):
-                    if value is None or int(value):
-                        return True
-                return False
-        return True
-
     def __call__(self, env, start_response):
         request = Request(env)
         if request.method in ("POST", "PUT"):
-            if not self._header_write_allowed(request, env):
-                return HTTPForbidden()(env, start_response)
+            user = env['REMOTE_USER']
+            for (key, value) in request.headers.items():
+                if key.lower() == 'x-account-meta-bytes-limit':
+                    if not ".reseller_admin" in user.split(','):
+                        return HTTPForbidden()(env, start_response)
+                    if not (isinstance(value, (int, long, NoneType) )):
+                        return HTTPBadRequest()(env, start_response)
 
             if 'PATH_INFO' in env:
                 accountname = env['PATH_INFO'].split('/')[2]
@@ -89,7 +83,6 @@ class Swquota(object):
                     memcache_key = "quota_exceeded_%s" % (accountname, )
                     quota_exceeded = memcache_client.get(memcache_key)
 
-                user = env['REMOTE_USER']
                 if ".reseller_admin" in user.split(','):
                     quota_exceeded = False 
 
