@@ -36,7 +36,9 @@ Quick Install
 
 5) If you want to force a quota on an account you have to set it as reseller. For example:
 
-    swift -U reseller:reseller -K reseller --os-storage-url=https://127.0.0.1/v1/AUTH_account-name post -m bytes-limit:10000
+    swauth-add-user -K swauthkey -r account reseller reseller
+    swift -U account:reseller -K reseller post -m bytes-limit:10000
+    swauth-delete-user -K swauthkey account reseller
 
 Please keep in mind that the quota comes into effect after an object was put into swift.  If you have already 999 bytes in your account and your quota is 1000 bytes you can still 
 upload a single object with 5GB. Due to swifts eventual consistency the calculated usage might be a little bit higher or lower than the actual usage. 
