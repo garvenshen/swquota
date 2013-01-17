@@ -16,9 +16,11 @@
 from types import NoneType
 
 try:
-    from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, HTTPBadRequest, Request
+    from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge,\
+        HTTPUnauthorized, HTTPBadRequest, Request
 except ImportError:
-    from webob.exc import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, HTTPBadRequest, Request
+    from webob.exc import HTTPForbidden, HTTPRequestEntityTooLarge,\
+        HTTPUnauthorized, HTTPBadRequest, Request
 
 from swift.common.utils import cache_from_env, get_logger
 from swift.common.wsgi import make_pre_authed_request
@@ -71,7 +73,7 @@ class Swquota(object):
                 if key.lower() == 'x-account-meta-bytes-limit':
                     if not ".reseller_admin" in user.split(','):
                         return HTTPForbidden()(env, start_response)
-                    if not (isinstance(value, (int, long, NoneType) )):
+                    if not (isinstance(value, (int, long, NoneType))):
                         return HTTPBadRequest()(env, start_response)
 
             if 'PATH_INFO' in env:
@@ -84,7 +86,7 @@ class Swquota(object):
                     quota_exceeded = memcache_client.get(memcache_key)
 
                 if ".reseller_admin" in user.split(','):
-                    quota_exceeded = False 
+                    quota_exceeded = False
 
                 if quota_exceeded is None:
                     quota_exceeded = False
