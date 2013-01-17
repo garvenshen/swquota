@@ -14,9 +14,9 @@
 """ Quota middleware for Openstack Swift Proxy """
 
 try:
-    from swift.common.swob import HTTPForbidden, HTTPUnauthorized, Request
+    from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, Request
 except ImportError:
-    from webob.exc import HTTPForbidden, HTTPUnauthorized, Request
+    from webob.exc import HTTPForbidden, HTTPRequestEntityTooLarge, HTTPUnauthorized, Request
 
 from swift.common.utils import cache_from_env, get_logger
 from swift.common.wsgi import make_pre_authed_request
@@ -113,7 +113,7 @@ class Swquota(object):
                     if 'HTTP_AUTHORIZATION' in env:
                         if env['HTTP_AUTHORIZATION'][0:3] == "AWS":
                             return HTTPUnauthorized()(env, start_response)
-                    return HTTPForbidden()(env, start_response)
+                    return HTTPRequestEntityTooLarge()(env, start_response)
         return self.app(env, start_response)
 
 
