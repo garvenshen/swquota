@@ -56,6 +56,18 @@ def start_response(*args):
 
 class TestAccountQuota(unittest.TestCase):
 
+
+    def test_unauthorized(self):
+        headers = [('x-account-bytes-used', 1000), ]
+        app = Swquota(FakeApp(headers), {})
+        cache = FakeCache(None)
+        req = Request.blank('/v1/a/c/o',
+                            environ={'REQUEST_METHOD': 'PUT',
+                                     'swift.cache': cache})
+        res = req.get_response(app)
+        #Response code of 200 because authentication itself is not done here
+        self.assertEquals(res.status_int, 200)
+
     def test_no_quotas(self):
         headers = [('x-account-bytes-used', 1000), ]
         app = Swquota(FakeApp(headers), {})
@@ -90,8 +102,6 @@ class TestAccountQuota(unittest.TestCase):
                                      'REMOTE_USER': 'a.,.reseller_admin'})
         res = req.get_response(app)
         self.assertEquals(res.status_int, 200)
-
-
 
     def test_not_exceed_bytes_quota(self):
         headers = [('x-account-bytes-used', 1000),
