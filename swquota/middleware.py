@@ -89,6 +89,10 @@ class Swquota(object):
                     memcache_key = "quota_exceeded_%s" % (accountname, )
                     quota_exceeded = memcache_client.get(memcache_key)
 
+                user = env['REMOTE_USER']
+                if ".reseller_admin" in user.split(','):
+                    quota_exceeded = False 
+
                 if quota_exceeded is None:
                     quota_exceeded = False
 
