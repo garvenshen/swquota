@@ -67,8 +67,13 @@ class Swquota(object):
 
     def __call__(self, env, start_response):
         request = Request(env)
-        if request.method in ("POST", "PUT"):
+    
+        user = ""
+        if 'REMOTE_USER' in env:
             user = env['REMOTE_USER']
+        
+        #Check if quota set is valid
+        if request.method in ("POST"):
             for (key, value) in request.headers.items():
                 if key.lower() == 'x-account-meta-bytes-limit':
                     if not ".reseller_admin" in user.split(','):
@@ -76,6 +81,11 @@ class Swquota(object):
                     if not (isinstance(value, (int, long, NoneType))):
                         return HTTPBadRequest()(env, start_response)
 
+        #Pass early if request is from reseller
+        if ".reseller_admin" in user.split(','):
+            return self.app(env, start_response)
+
+        if request.method in ("POST", "PUT"):
             if 'PATH_INFO' in env:
                 accountname = env['PATH_INFO'].split('/')[2]
                 memcache_client = cache_from_env(env)
@@ -84,9 +94,6 @@ class Swquota(object):
                 if memcache_client:
                     memcache_key = "quota_exceeded_%s" % (accountname, )
                     quota_exceeded = memcache_client.get(memcache_key)
-
-                if ".reseller_admin" in user.split(','):
-                    quota_exceeded = False
 
                 if quota_exceeded is None:
                     quota_exceeded = False
