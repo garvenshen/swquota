@@ -77,7 +77,7 @@ class TestAccountQuota(unittest.TestCase):
                                      'swift.cache': cache,
                                      'REMOTE_USER': 'a'})
         res = req.get_response(app)
-        self.assertEquals(res.status_int, 403)
+        self.assertEquals(res.status_int, 413)
 
     def test_exceed_bytes_quota_reseller(self):
         headers = [('x-account-bytes-used', 1000),
@@ -141,9 +141,20 @@ class TestAccountQuota(unittest.TestCase):
         req = Request.blank('/v1/a/c',
                             environ={'REQUEST_METHOD': 'POST',
                                      'HTTP_X_ACCOUNT_META_BYTES_LIMIT': None,
+                                     'REMOTE_USER': 'a'})
+        res = req.get_response(app, {})
+        self.assertEquals(res.status_int, 403)
+
+    def test_delete_quotas_reseller(self):
+        headers = [('x-account-bytes-used', 0), ]
+        app = Swquota(FakeApp(headers), {})
+        req = Request.blank('/v1/a/c',
+                            environ={'REQUEST_METHOD': 'POST',
+                                     'HTTP_X_ACCOUNT_META_BYTES_LIMIT': None,
                                      'REMOTE_USER': 'a.,.reseller_admin'})
         res = req.get_response(app, {})
         self.assertEquals(res.status_int, 200)
+
 
 if __name__ == '__main__':
     unittest.main()
