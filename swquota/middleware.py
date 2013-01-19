@@ -13,8 +13,6 @@
 
 """ Quota middleware for Openstack Swift Proxy """
 
-from types import NoneType
-
 try:
     from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge,\
         HTTPUnauthorized, HTTPBadRequest, Request
@@ -87,8 +85,11 @@ class Swquota(object):
                 if key.lower() == 'x-account-meta-bytes-limit':
                     if not reseller:
                         return HTTPForbidden()(env, start_response)
-                    if not (isinstance(value, (int, long, NoneType))):
-                        return HTTPBadRequest()(env, start_response)
+                    if value:
+                        try:
+                            int(value)
+                        except ValueError:
+                            return HTTPBadRequest()(env, start_response)
 
         #Pass early if request is from reseller
         if reseller:
