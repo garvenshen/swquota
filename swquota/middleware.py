@@ -68,19 +68,30 @@ class Swquota(object):
     def __call__(self, env, start_response):
         request = Request(env)
 
+        reseller = False
+
+        #used by tempauth and swauth
         user = env.get('REMOTE_USER', '')
+        if isinstance(user, basestring):
+            if ".reseller_admin" in user.split(','):
+                reseller = True
+
+        #used by keystone
+        roles = env.get('HTTP_X_ROLES', '')
+        if "reseller" in roles.split(','):
+            reseller = True
 
         #Check if quota set is valid
         if request.method in ("POST"):
             for (key, value) in request.headers.items():
                 if key.lower() == 'x-account-meta-bytes-limit':
-                    if not ".reseller_admin" in user.split(','):
+                    if not reseller:
                         return HTTPForbidden()(env, start_response)
                     if not (isinstance(value, (int, long, NoneType))):
                         return HTTPBadRequest()(env, start_response)
 
         #Pass early if request is from reseller
-        if ".reseller_admin" in user.split(','):
+        if reseller:
             return self.app(env, start_response)
 
         if request.method in ("POST", "PUT"):
