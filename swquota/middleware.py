@@ -40,7 +40,7 @@ class Swquota(object):
 
     [filter:swquota]
     paste.filter_factory = swquota:filter_factory
-    #cache_timeout = 300
+    #cache_timeout = 60
 
     """
 
@@ -119,7 +119,7 @@ class Swquota(object):
                         memcache_client.set(
                             memcache_key,
                             quota_exceeded,
-                            timeout=float(self.conf.get('cache_timeout', 300)))
+                            timeout=float(self.conf.get('cache_timeout', 60)))
 
                 if quota_exceeded:
                     #A different return code is needed for Swift S3
