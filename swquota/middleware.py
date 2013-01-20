@@ -38,6 +38,9 @@ class Swquota(object):
 
     The following shows an example proxy-server.conf:
 
+    [pipeline:main]
+    pipeline = catch_errors healthcheck cache tempauth swquota proxy-server
+
     [filter:swquota]
     paste.filter_factory = swquota:filter_factory
     #cache_timeout = 60

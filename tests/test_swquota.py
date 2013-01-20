@@ -102,6 +102,20 @@ class TestAccountQuota(unittest.TestCase):
         res = req.get_response(app)
         self.assertEquals(res.status_int, 200)
 
+    def test_exceed_bytes_quota_reseller_keystone(self):
+        headers = [('x-account-bytes-used', 1000),
+                   ('x-account-meta-bytes-limit', 0)]
+        app = Swquota(FakeApp(headers), {})
+        cache = FakeCache(None)
+        req = Request.blank('/v1/a/c/o',
+                            environ={'REQUEST_METHOD': 'PUT',
+                                     'swift.cache': cache,
+                                     'HTTP_X_ROLES': 'a,reseller'})
+        res = req.get_response(app)
+        self.assertEquals(res.status_int, 200)
+
+
+
     def test_not_exceed_bytes_quota(self):
         headers = [('x-account-bytes-used', 1000),
                    ('x-account-meta-bytes-limit', 2000)]
