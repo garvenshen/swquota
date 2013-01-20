@@ -134,9 +134,9 @@ class TestAccountQuota(unittest.TestCase):
         req = Request.blank('/v1/a/c',
                             environ={'REQUEST_METHOD': 'POST',
                                      'HTTP_X_ACCOUNT_META_BYTES_LIMIT': 'abc',
-                                     'REMOTE_USER': 'a'})
+                                     'REMOTE_USER': 'a,.reseller_admin'})
         res = req.get_response(app, {})
-        self.assertEquals(res.status_int, 403)
+        self.assertEquals(res.status_int, 400)
 
     def test_valid_quotas_admin(self):
         headers = [('x-account-bytes-used', 0), ]
