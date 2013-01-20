@@ -41,15 +41,6 @@ class FakeApp(object):
         return []
 
 
-class FakeMissingApp(object):
-    def __init__(self):
-        pass
-
-    def __call__(self, env, start_response):
-        start_response('404 Not Found', self.headers)
-        return []
-
-
 def start_response(*args):
     pass
 
