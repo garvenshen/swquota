@@ -14,10 +14,10 @@
 """ Quota middleware for Openstack Swift Proxy """
 
 try:
-    from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge,\
+    from swift.common.swob import HTTPForbidden, HTTPRequestEntityTooLarge, \
         HTTPUnauthorized, HTTPBadRequest, Request
 except ImportError:
-    from webob.exc import HTTPForbidden, HTTPRequestEntityTooLarge,\
+    from webob.exc import HTTPForbidden, HTTPRequestEntityTooLarge, \
         HTTPUnauthorized, HTTPBadRequest, Request
 
 from swift.common.utils import cache_from_env, get_logger
