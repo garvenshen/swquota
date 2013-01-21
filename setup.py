@@ -25,5 +25,6 @@ setup(
     install_requires=['swift'],
     entry_points={
         'paste.filter_factory': ['swquota=%s' % entry_point]
-    }
+    },
+    scripts=['bin/swquota-tool']
 )
