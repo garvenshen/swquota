@@ -70,6 +70,9 @@ class Swquota(object):
     def __call__(self, env, start_response):
         request = Request(env)
 
+        if request.method not in ("POST", "PUT"):
+            return self.app(env, start_response)
+
         reseller = False
         valid = self.conf.get('groups', 'reseller,.reseller_admin').split(',')
 
@@ -86,53 +89,51 @@ class Swquota(object):
                 reseller = True
 
         #Check if quota set is valid
-        if request.method in ("POST"):
-            for (key, value) in request.headers.items():
-                if key.lower() == 'x-account-meta-bytes-limit':
-                    if not reseller:
-                        return HTTPForbidden()(env, start_response)
-                    if value:
-                        try:
-                            int(value)
-                        except ValueError:
-                            return HTTPBadRequest()(env, start_response)
+        for (key, value) in request.headers.items():
+            if key.lower() == 'x-account-meta-bytes-limit':
+                if not reseller:
+                    return HTTPForbidden()(env, start_response)
+                if value:
+                    try:
+                        int(value)
+                    except ValueError:
+                        return HTTPBadRequest()(env, start_response)
 
         #Pass early if request is from reseller
         if reseller:
             return self.app(env, start_response)
 
-        if request.method in ("POST", "PUT"):
-            path_info = env.get('PATH_INFO', None)
-            if path_info:
-                accountname = path_info.split('/')[2]
-                memcache_client = cache_from_env(env)
-                quota_exceeded = None
+        path_info = env.get('PATH_INFO', None)
+        if path_info:
+            accountname = path_info.split('/')[2]
+            memcache_client = cache_from_env(env)
+            quota_exceeded = None
 
+            if memcache_client:
+                memcache_key = "quota_exceeded_%s" % (accountname, )
+                quota_exceeded = memcache_client.get(memcache_key)
+
+            if quota_exceeded is None:
+                quota_exceeded = False
+
+                (used_bytes, quota) = self._get_quota(accountname, env)
+
+                if quota >= 0 and quota < used_bytes:
+                    quota_exceeded = True
+                    self.logger.info("Quota exceeded: %s %s > %s",
+                                     accountname, used_bytes, quota)
                 if memcache_client:
-                    memcache_key = "quota_exceeded_%s" % (accountname, )
-                    quota_exceeded = memcache_client.get(memcache_key)
+                    memcache_client.set(
+                        memcache_key,
+                        quota_exceeded,
+                        timeout=float(self.conf.get('cache_timeout', 60)))
 
-                if quota_exceeded is None:
-                    quota_exceeded = False
-
-                    (used_bytes, quota) = self._get_quota(accountname, env)
-
-                    if quota >= 0 and quota < used_bytes:
-                        quota_exceeded = True
-                        self.logger.info("Quota exceeded: %s %s > %s",
-                                         accountname, used_bytes, quota)
-                    if memcache_client:
-                        memcache_client.set(
-                            memcache_key,
-                            quota_exceeded,
-                            timeout=float(self.conf.get('cache_timeout', 60)))
-
-                if quota_exceeded:
-                    #A different return code is needed for Swift S3
-                    if 'HTTP_AUTHORIZATION' in env:
-                        if env['HTTP_AUTHORIZATION'][0:3] == "AWS":
-                            return HTTPUnauthorized()(env, start_response)
-                    return HTTPRequestEntityTooLarge()(env, start_response)
+            if quota_exceeded:
+                #A different return code is needed for Swift S3
+                if 'HTTP_AUTHORIZATION' in env:
+                    if env['HTTP_AUTHORIZATION'][0:3] == "AWS":
+                        return HTTPUnauthorized()(env, start_response)
+                return HTTPRequestEntityTooLarge()(env, start_response)
         return self.app(env, start_response)
 
 
