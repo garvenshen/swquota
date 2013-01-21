@@ -44,6 +44,7 @@ class Swquota(object):
     [filter:swquota]
     paste.filter_factory = swquota:filter_factory
     #cache_timeout = 60
+    #groups = reseller,.reseller_admin
 
     """
 
@@ -70,17 +71,19 @@ class Swquota(object):
         request = Request(env)
 
         reseller = False
+        valid = self.conf.get('groups', 'reseller,.reseller_admin').split(',')
 
         #used by tempauth and swauth
         user = env.get('REMOTE_USER', '')
         if isinstance(user, basestring):
-            if ".reseller_admin" in user.split(','):
+            if (set(user.split(',')) & set(valid)):
                 reseller = True
 
         #used by keystone
         roles = env.get('HTTP_X_ROLES', '')
-        if "reseller" in roles.split(','):
-            reseller = True
+        if isinstance(roles, basestring):
+            if (set(roles.split(',')) & set(valid)):
+                reseller = True
 
         #Check if quota set is valid
         if request.method in ("POST"):
